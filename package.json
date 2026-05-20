@@ -2,14 +2,22 @@
   "name": "fairgiveaway-backend",
   "version": "1.0.50",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
   },
   "dependencies": {
-    "elysia": "latest"
+    "elysia": "latest",
+    "@elysiajs/cors": "latest",
+    "@elysiajs/swagger": "latest",
+    "mongoose": "latest",
+    "@upstash/redis": "latest",
+    "puppeteer-core": "latest",
+    "uuid": "latest",
+    "elysia-rate-limit": "latest"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "@types/uuid": "latest"
   },
   "module": "src/index.js"
 }
