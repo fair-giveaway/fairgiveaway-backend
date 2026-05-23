@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: fairgiveaway-backend
     ports:
-      - "7860:7860"
+      - "80:7860"
     env_file:
       - .env
     restart: unless-stopped
