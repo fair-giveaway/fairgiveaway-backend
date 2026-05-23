@@ -1,7 +1,7 @@
-import { Elysia, t } from 'elysia';
+import { Elysia, t } from "elysia";
 
-import { Giveaway, redis } from '../db';
-import { scrapeTweet, verifyCandidate } from '../scraper';
+import { Giveaway, redis } from "../db";
+import { scrapeTweet, verifyCandidate } from "../scraper";
 
 const REDIS_TTL = 900; // 15-minute session window
 
@@ -13,16 +13,22 @@ async function storeDrawSession(
   mode: string,
   participants: string[],
   hostUsername: string,
-  hostAvatarUrl?: string
+  hostAvatarUrl?: string,
 ): Promise<void> {
   const tasks = [
-    redis.set(`draw:${drawId}`, JSON.stringify(participants), { ex: REDIS_TTL }),
+    redis.set(`draw:${drawId}`, JSON.stringify(participants), {
+      ex: REDIS_TTL,
+    }),
     redis.set(`draw:${drawId}:mode`, mode, { ex: REDIS_TTL }),
     redis.set(`draw:${drawId}:tweetId`, tweetId, { ex: REDIS_TTL }),
     redis.set(`draw:${drawId}:hostUsername`, hostUsername, { ex: REDIS_TTL }),
   ];
   if (hostAvatarUrl) {
-    tasks.push(redis.set(`draw:${drawId}:hostAvatarUrl`, hostAvatarUrl, { ex: REDIS_TTL }));
+    tasks.push(
+      redis.set(`draw:${drawId}:hostAvatarUrl`, hostAvatarUrl, {
+        ex: REDIS_TTL,
+      }),
+    );
   }
   await Promise.all(tasks);
 }
@@ -47,8 +53,15 @@ async function loadActiveSession(id: string) {
   ]);
   if (!raw) return null;
 
-  const participants = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  return { participants, mode, tweetId, hostUsername, hostAvatarUrl, drawId: id };
+  const participants = typeof raw === "string" ? JSON.parse(raw) : raw;
+  return {
+    participants,
+    mode,
+    tweetId,
+    hostUsername,
+    hostAvatarUrl,
+    drawId: id,
+  };
 }
 
 // ── Handlers ─────────────────────────────────────────────
@@ -61,19 +74,37 @@ async function handleInitDraw({
   set: { status?: number | string };
 }) {
   const { tweetId, mode, hostUsername: clientHost } = body;
-  const { participants, hostUsername: scrapedHost, hostAvatarUrl: scrapedHostAvatar } = await scrapeTweet(tweetId, mode as 'likes' | 'reposts');
+  const {
+    participants,
+    hostUsername: scrapedHost,
+    hostAvatarUrl: scrapedHostAvatar,
+  } = await scrapeTweet(tweetId, mode as "likes" | "reposts", clientHost);
 
   if (participants.length === 0) {
     set.status = 404;
-    return { error: 'No eligible participants found or failed to scrape.' };
+    return { error: "No eligible participants found or failed to scrape." };
   }
 
-  const finalHost = (scrapedHost && scrapedHost !== 'unknown') ? scrapedHost : (clientHost || 'unknown');
+  const finalHost =
+    scrapedHost && scrapedHost !== "unknown"
+      ? scrapedHost
+      : clientHost || "unknown";
 
   const drawId = crypto.randomUUID();
-  const hostAvatarUrl = scrapedHostAvatar || (finalHost !== 'unknown' ? `https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png` : undefined);
+  const hostAvatarUrl =
+    scrapedHostAvatar ||
+    (finalHost !== "unknown"
+      ? `https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png`
+      : undefined);
 
-  await storeDrawSession(drawId, tweetId, mode, participants, finalHost, hostAvatarUrl);
+  await storeDrawSession(
+    drawId,
+    tweetId,
+    mode,
+    participants,
+    finalHost,
+    hostAvatarUrl,
+  );
 
   return {
     drawId,
@@ -83,31 +114,65 @@ async function handleInitDraw({
     hostAvatarUrl,
     participants,
     totalParticipants: participants.length,
-    status: 'active',
+    status: "active",
     winners: [],
     createdAt: Date.now(),
   };
 }
 
-async function handleDrawStatus({ params, set }: { params: { id: string }; set: { status?: number | string } }) {
+async function handleDrawStatus({
+  params,
+  set,
+}: {
+  params: { id: string };
+  set: { status?: number | string };
+}) {
   const { id } = params;
 
   const doc = await Giveaway.findById(id);
   if (doc) {
-    return { status: 'finalized', data: doc };
+    return { status: "finalized", data: doc };
   }
 
   const session = await loadActiveSession(id);
   if (session) {
-    return { status: 'active', ...session };
+    return { status: "active", ...session };
   }
 
   set.status = 404;
-  return { error: 'Draw not found or expired' };
+  return { error: "Draw not found or expired" };
 }
 
-async function handleSaveDraw({ body }: { body: { drawId: string; tweetId: string; hostUsername: string; hostAvatarUrl?: string; mode: string; totalParticipants: number; participants?: string[]; enabledFeatures?: string[]; engagementTasks?: Record<string, unknown>; antiBotFilters?: Record<string, unknown>; winners: Record<string, string>[] } }) {
-  const { drawId, tweetId, hostUsername, hostAvatarUrl, mode, totalParticipants, participants, enabledFeatures, engagementTasks, antiBotFilters, winners } = body;
+async function handleSaveDraw({
+  body,
+}: {
+  body: {
+    drawId: string;
+    tweetId: string;
+    hostUsername: string;
+    hostAvatarUrl?: string;
+    mode: string;
+    totalParticipants: number;
+    participants?: string[];
+    enabledFeatures?: string[];
+    engagementTasks?: Record<string, unknown>;
+    antiBotFilters?: Record<string, unknown>;
+    winners: Record<string, string>[];
+  };
+}) {
+  const {
+    drawId,
+    tweetId,
+    hostUsername,
+    hostAvatarUrl,
+    mode,
+    totalParticipants,
+    participants,
+    enabledFeatures,
+    engagementTasks,
+    antiBotFilters,
+    winners,
+  } = body;
 
   const giveaway = new Giveaway({
     _id: drawId,
@@ -129,14 +194,14 @@ async function handleSaveDraw({ body }: { body: { drawId: string; tweetId: strin
 }
 
 async function handleHistory() {
-  return await Giveaway.find({ platform: 'X' })
+  return await Giveaway.find({ platform: "X" })
     .sort({ createdAt: -1 })
     .limit(20)
     .lean();
 }
 
 async function handleTweetHistory({ params }: { params: { tweetId: string } }) {
-  return await Giveaway.find({ platform: 'X', tweetId: params.tweetId })
+  return await Giveaway.find({ platform: "X", tweetId: params.tweetId })
     .sort({ createdAt: -1 })
     .limit(20)
     .lean();
@@ -144,29 +209,33 @@ async function handleTweetHistory({ params }: { params: { tweetId: string } }) {
 
 async function handleLeaderboard() {
   return await Giveaway.aggregate([
-    { $match: { platform: 'X' } },
+    { $match: { platform: "X" } },
     {
       $group: {
-        _id: '$hostUsername',
-        hostAvatarUrl: { $first: '$hostAvatarUrl' },
+        _id: "$hostUsername",
+        hostAvatarUrl: { $first: "$hostAvatarUrl" },
         totalGiveaways: { $sum: 1 },
-        totalParticipants: { $sum: '$totalParticipants' },
+        totalParticipants: { $sum: "$totalParticipants" },
       },
     },
     {
       $project: {
         _id: 1,
-        avatarUrl: '$hostAvatarUrl',
+        avatarUrl: "$hostAvatarUrl",
         totalGiveaways: 1,
         totalParticipants: 1,
-      }
+      },
     },
     { $sort: { totalGiveaways: -1 } },
     { $limit: 20 },
   ]);
 }
 
-async function handleVerifyCandidate({ body }: { body: { username: string; tweetId: string; config: Record<string, unknown> } }) {
+async function handleVerifyCandidate({
+  body,
+}: {
+  body: { username: string; tweetId: string; config: Record<string, unknown> };
+}) {
   const { username, tweetId, config } = body;
   const result = await verifyCandidate(username, tweetId, config);
   return result;
@@ -175,20 +244,19 @@ async function handleVerifyCandidate({ body }: { body: { username: string; tweet
 // ── Routes ───────────────────────────────────────────────
 
 export function xScrapeRoutes() {
-  return new Elysia()
-    .post('/api/x/draw/init', handleInitDraw, {
-      body: t.Object({
-        tweetId: t.String(),
-        mode: t.Union([t.Literal('likes'), t.Literal('reposts')]),
-        hostUsername: t.Optional(t.String()),
-      }),
-    });
+  return new Elysia().post("/api/x/draw/init", handleInitDraw, {
+    body: t.Object({
+      tweetId: t.String(),
+      mode: t.Union([t.Literal("likes"), t.Literal("reposts")]),
+      hostUsername: t.Optional(t.String()),
+    }),
+  });
 }
 
 // eslint-disable-next-line ai-guardrails/max-function-lines
 export function xRoutes() {
   return new Elysia()
-    .post('/api/x/verify', handleVerifyCandidate, {
+    .post("/api/x/verify", handleVerifyCandidate, {
       body: t.Object({
         username: t.String(),
         tweetId: t.String(),
@@ -203,37 +271,41 @@ export function xRoutes() {
         }),
       }),
     })
-    .get('/api/x/draw/status/:id', handleDrawStatus)
-    .post('/api/x/draw/save', handleSaveDraw, {
+    .get("/api/x/draw/status/:id", handleDrawStatus)
+    .post("/api/x/draw/save", handleSaveDraw, {
       body: t.Object({
         drawId: t.String(),
         tweetId: t.String(),
         hostUsername: t.String(),
         hostAvatarUrl: t.Optional(t.String()),
-        mode: t.Union([t.Literal('likes'), t.Literal('reposts')]),
+        mode: t.Union([t.Literal("likes"), t.Literal("reposts")]),
         totalParticipants: t.Number(),
         participants: t.Optional(t.Array(t.String())),
         enabledFeatures: t.Optional(t.Array(t.String())),
-        engagementTasks: t.Optional(t.Object({
-          mustLike: t.Optional(t.Boolean()),
-          mustComment: t.Optional(t.Boolean()),
-          mustFollow: t.Optional(t.Boolean()),
-          followUsernames: t.Optional(t.Array(t.String())),
-          mustExternal: t.Optional(t.Boolean()),
-          externalUrl: t.Optional(t.String()),
-          extMustLike: t.Optional(t.Boolean()),
-          extMustRepost: t.Optional(t.Boolean()),
-          extMustComment: t.Optional(t.Boolean()),
-          extMustQuote: t.Optional(t.Boolean()),
-        })),
-        antiBotFilters: t.Optional(t.Object({
-          mustPfp: t.Optional(t.Boolean()),
-          mustBio: t.Optional(t.Boolean()),
-          mustAge: t.Optional(t.Boolean()),
-          minMonths: t.Optional(t.Number()),
-          mustActivity: t.Optional(t.Boolean()),
-          minPosts: t.Optional(t.Number()),
-        })),
+        engagementTasks: t.Optional(
+          t.Object({
+            mustLike: t.Optional(t.Boolean()),
+            mustComment: t.Optional(t.Boolean()),
+            mustFollow: t.Optional(t.Boolean()),
+            followUsernames: t.Optional(t.Array(t.String())),
+            mustExternal: t.Optional(t.Boolean()),
+            externalUrl: t.Optional(t.String()),
+            extMustLike: t.Optional(t.Boolean()),
+            extMustRepost: t.Optional(t.Boolean()),
+            extMustComment: t.Optional(t.Boolean()),
+            extMustQuote: t.Optional(t.Boolean()),
+          }),
+        ),
+        antiBotFilters: t.Optional(
+          t.Object({
+            mustPfp: t.Optional(t.Boolean()),
+            mustBio: t.Optional(t.Boolean()),
+            mustAge: t.Optional(t.Boolean()),
+            minMonths: t.Optional(t.Number()),
+            mustActivity: t.Optional(t.Boolean()),
+            minPosts: t.Optional(t.Number()),
+          }),
+        ),
         winners: t.Array(
           t.Object({
             username: t.String(),
@@ -241,11 +313,11 @@ export function xRoutes() {
             status: t.String(),
             avatarUrl: t.Optional(t.String()),
             commentProofUrl: t.Optional(t.String()),
-          })
+          }),
         ),
       }),
     })
-    .get('/api/x/giveaways/history', handleHistory)
-    .get('/api/x/giveaways/tweet/:tweetId', handleTweetHistory)
-    .get('/api/x/giveaways/leaderboard', handleLeaderboard);
+    .get("/api/x/giveaways/history", handleHistory)
+    .get("/api/x/giveaways/tweet/:tweetId", handleTweetHistory)
+    .get("/api/x/giveaways/leaderboard", handleLeaderboard);
 }

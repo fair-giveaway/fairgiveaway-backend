@@ -3,7 +3,7 @@
  * GraphQL response objects. Handles arbitrary nesting depth.
  */
 export function isRecord(obj: unknown): obj is Record<string, unknown> {
-  return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+  return typeof obj === "object" && obj !== null && !Array.isArray(obj);
 }
 
 export function extractScreenNames(obj: unknown): string[] {
@@ -21,7 +21,7 @@ export function extractScreenNames(obj: unknown): string[] {
   if (isRecord(obj)) {
     for (const key of Object.keys(obj)) {
       const val = obj[key];
-      if (key === 'screen_name' && typeof val === 'string') {
+      if (key === "screen_name" && typeof val === "string") {
         names.push(val);
       } else {
         names.push(...extractScreenNames(val));
@@ -37,10 +37,10 @@ export function randomDelay(minMs: number, maxMs: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function buildApiFilter(mode: 'likes' | 'reposts'): string {
-  return mode === 'likes' ? '/Favoriters' : '/Retweeters';
+export function buildApiFilter(mode: "likes" | "reposts"): string {
+  return mode === "likes" ? "/Favoriters" : "/Retweeters";
 }
 
-export function buildTabPath(mode: 'likes' | 'reposts'): string {
-  return mode === 'likes' ? '/likes' : '/retweets';
+export function buildTabPath(mode: "likes" | "reposts"): string {
+  return mode === "likes" ? "/likes" : "/retweets";
 }
