@@ -1,208 +1,150 @@
 import { t } from "elysia";
 
+// ── Authentication Headers ───────────────────────────────
 export const XHeadersSchema = t.Optional(
   t.Object({
     "x-auth-token": t.Optional(
       t.String({
-        description: "Twitter auth_token cookie. Bypasses the env variable if provided.",
-        default: "",
+        description:
+          "Twitter auth_token cookie value. When provided together with x-ct0, these credentials are used instead of the server's environment variables. Obtain from browser DevTools → Application → Cookies → twitter.com → auth_token.",
+        examples: ["a1b2c3d4e5f6..."],
       }),
     ),
     "x-ct0": t.Optional(
       t.String({
-        description: "Twitter ct0 cookie. Bypasses the env variable if provided.",
-        default: "",
+        description:
+          "Twitter ct0 CSRF token cookie value. Must be provided together with x-auth-token. Obtain from browser DevTools → Application → Cookies → twitter.com → ct0.",
+        examples: ["f6e5d4c3b2a1..."],
       }),
     ),
   }),
 );
 
-export const WinnerSchema = t.Object({
-  username: t.String({ description: "Twitter username" }),
-  type: t.String({ description: "Type of winner (e.g. winner, backup)" }),
-  status: t.String({ description: "Status (e.g. verified, failed)" }),
-  avatarUrl: t.Optional(t.Nullable(t.String({ description: "URL to the avatar" }))),
-  commentProofUrl: t.Optional(
-    t.Nullable(t.String({ description: "Proof of comment if required" })),
-  ),
-  failReason: t.Optional(t.Nullable(t.String({ description: "Reason for failure if status is failed" }))),
-});
+// ── Winner ───────────────────────────────────────────────
 
-export const AntiBotFiltersSchema = t.Object({
-  mustPfp: t.Optional(t.Boolean({ description: "Must have profile picture" })),
-  mustBio: t.Optional(t.Boolean({ description: "Must have bio" })),
-  mustAge: t.Optional(t.Boolean({ description: "Account must have minimum age" })),
-  minMonths: t.Optional(t.Number({ description: "Minimum age in months" })),
-  mustActivity: t.Optional(t.Boolean({ description: "Must have minimum activity" })),
-  minPosts: t.Optional(t.Number({ description: "Minimum posts required" })),
-  mustComment: t.Optional(t.Boolean({ description: "Must have commented on the tweet" })),
-});
-
-export const EngagementTasksSchema = t.Object({
-  mustLike: t.Optional(t.Boolean()),
-  mustComment: t.Optional(t.Boolean()),
-  mustFollow: t.Optional(t.Boolean()),
-  followUsernames: t.Optional(t.Array(t.String())),
-  mustExternal: t.Optional(t.Boolean()),
-  externalUrl: t.Optional(t.Nullable(t.String())),
-  extMustLike: t.Optional(t.Boolean()),
-  extMustRepost: t.Optional(t.Boolean()),
-  extMustComment: t.Optional(t.Boolean()),
-  extMustQuote: t.Optional(t.Boolean()),
-});
-
-export const GiveawaySchema = t.Object({
-  _id: t.String(),
-  tweetId: t.String(),
-  hostUsername: t.String(),
-  hostAvatarUrl: t.Optional(t.Nullable(t.String())),
-  platform: t.String(),
-  mode: t.String(),
-  totalParticipants: t.Number(),
-  participants: t.Array(t.String()),
-  enabledFeatures: t.Array(t.String()),
-  engagementTasks: t.Optional(EngagementTasksSchema),
-  antiBotFilters: t.Optional(AntiBotFiltersSchema),
-  winners: t.Array(WinnerSchema),
-  createdAt: t.Union([t.String(), t.Date()]),
-});
-
-export const InitDrawRoute = {
-  headers: XHeadersSchema,
-  body: t.Object({
-    tweetId: t.String({ description: "The ID of the target Tweet" }),
-    mode: t.Union([t.Literal("likes"), t.Literal("reposts")], {
-      description: "Whether to scrape from likes or reposts",
+export const WinnerSchema = t.Object(
+  {
+    username: t.String({
+      description: "Twitter handle of the winner (without @)",
+      examples: ["elonmusk"],
     }),
-    hostUsername: t.Optional(
-      t.String({ description: "The username of the host to filter out or highlight" }),
+    type: t.String({
+      description: "Winner tier. 'primary' = main winner, 'secondary' = backup winner drawn as replacement.",
+      examples: ["primary"],
+    }),
+    status: t.String({
+      description: "Verification outcome. 'verified' = passed all anti-bot checks, 'failed' = rejected by at least one filter.",
+      examples: ["verified"],
+    }),
+    avatarUrl: t.Optional(
+      t.Nullable(
+        t.String({
+          description: "URL to the winner's Twitter profile picture. Null if the avatar could not be resolved.",
+          examples: ["https://pbs.twimg.com/profile_images/123/photo.jpg"],
+        }),
+      ),
     ),
-  }),
-  response: {
-    200: t.Object({
-      drawId: t.String(),
-      tweetId: t.String(),
-      mode: t.String(),
-      hostUsername: t.String(),
-      hostAvatarUrl: t.Optional(t.Nullable(t.String())),
-      participants: t.Array(t.String()),
-      totalParticipants: t.Number(),
-      status: t.String(),
-      winners: t.Array(WinnerSchema),
-      createdAt: t.Number(),
-    }),
-    404: t.Object({
-      error: t.String(),
-    }),
+    commentProofUrl: t.Optional(
+      t.Nullable(
+        t.String({
+          description: "Direct URL to the winner's comment on the giveaway tweet, if comment verification was enabled.",
+          examples: ["https://x.com/user/status/1234567890"],
+        }),
+      ),
+    ),
+    failReason: t.Optional(
+      t.Nullable(
+        t.String({
+          description: "Human-readable reason why verification failed. Only present when status is 'failed'.",
+          examples: ["Account too new: 0 months old (Requires 1)"],
+        }),
+      ),
+    ),
   },
-  detail: {
-    tags: ["X (Twitter) - Scraper"],
-    summary: "Initialize a Draw",
-    description: "Scrape participants from a tweet and start a new draw session. Provide x-auth-token and x-ct0 in headers to override environment cookies.",
-  },
-};
+  { description: "Represents a single winner drawn from the giveaway, including their verification result." },
+);
 
-export const VerifyCandidateRoute = {
-  headers: XHeadersSchema,
-  body: t.Object({
-    username: t.String({ description: "The username of the candidate to verify" }),
-    tweetId: t.String({ description: "The tweet ID for comment verification" }),
-    config: AntiBotFiltersSchema,
-  }),
-  response: t.Object({
-    avatarUrl: t.Nullable(t.String()),
-    passedPfp: t.Boolean(),
-    passedBio: t.Boolean(),
-    passedAge: t.Boolean(),
-    actualAgeMonths: t.Optional(t.Number()),
-    passedActivity: t.Boolean(),
-    actualPosts: t.Optional(t.Number()),
-    passedComment: t.Boolean(),
-  }),
-  detail: {
-    tags: ["X (Twitter) - Verification"],
-    summary: "Verify a Candidate",
-    description: "Verifies if a specific candidate meets the anti-bot rules.",
-  },
-};
+// ── Anti-Bot Filters ─────────────────────────────────────
 
-export const SaveDrawRoute = {
-  body: t.Object({
-    drawId: t.String({ description: "The unique ID for the draw session" }),
-    tweetId: t.String({ description: "The target tweet ID" }),
-    hostUsername: t.String({ description: "The host's username" }),
-    hostAvatarUrl: t.Optional(t.Nullable(t.String())),
-    mode: t.Union([t.Literal("likes"), t.Literal("reposts")]),
-    totalParticipants: t.Number(),
-    participants: t.Optional(t.Array(t.String())),
-    enabledFeatures: t.Optional(t.Array(t.String())),
+export const AntiBotFiltersSchema = t.Object(
+  {
+    mustPfp: t.Optional(
+      t.Boolean({ description: "When true, candidates must have a custom profile picture (not the default egg/silhouette)." }),
+    ),
+    mustBio: t.Optional(
+      t.Boolean({ description: "When true, candidates must have a non-empty bio/description on their profile." }),
+    ),
+    mustAge: t.Optional(
+      t.Boolean({ description: "When true, candidates must have an account older than minMonths." }),
+    ),
+    minMonths: t.Optional(
+      t.Number({
+        description: "Minimum account age in months. Only used when mustAge is true. Defaults to 1 on the frontend.",
+        minimum: 1,
+        examples: [1],
+      }),
+    ),
+    mustActivity: t.Optional(
+      t.Boolean({ description: "When true, candidates must have posted at least minPosts tweets/replies." }),
+    ),
+    minPosts: t.Optional(
+      t.Number({
+        description: "Minimum number of posts (tweets + replies). Only used when mustActivity is enabled.",
+        minimum: 1,
+        examples: [10],
+      }),
+    ),
+    mustComment: t.Optional(
+      t.Boolean({ description: "When true, candidates must have commented (replied) on the giveaway tweet." }),
+    ),
+  },
+  { description: "Anti-bot filter configuration applied during winner verification." },
+);
+
+// ── Engagement Tasks ─────────────────────────────────────
+
+export const EngagementTasksSchema = t.Object(
+  {
+    mustLike: t.Optional(t.Boolean({ description: "Require the candidate to have liked the giveaway tweet." })),
+    mustComment: t.Optional(t.Boolean({ description: "Require the candidate to have commented on the giveaway tweet." })),
+    mustFollow: t.Optional(t.Boolean({ description: "Require the candidate to follow specific accounts listed in followUsernames." })),
+    followUsernames: t.Optional(
+      t.Array(t.String({ examples: ["fairgiveaway"] }), {
+        description: "List of Twitter usernames (without @) the candidate must follow when mustFollow is true.",
+      }),
+    ),
+    mustExternal: t.Optional(t.Boolean({ description: "When true, candidates must also engage with an external tweet specified by externalUrl." })),
+    externalUrl: t.Optional(
+      t.Nullable(t.String({
+        description: "Full URL to an external tweet that candidates must engage with when mustExternal is true.",
+        examples: ["https://x.com/user/status/1234567890"],
+      })),
+    ),
+    extMustLike: t.Optional(t.Boolean({ description: "Require like on the external tweet." })),
+    extMustRepost: t.Optional(t.Boolean({ description: "Require repost (retweet) of the external tweet." })),
+    extMustComment: t.Optional(t.Boolean({ description: "Require comment (reply) on the external tweet." })),
+    extMustQuote: t.Optional(t.Boolean({ description: "Require quote tweet of the external tweet." })),
+  },
+  { description: "Engagement task requirements the organizer set for participation eligibility." },
+);
+
+// ── Giveaway (Full Record) ───────────────────────────────
+
+export const GiveawaySchema = t.Object(
+  {
+    _id: t.String({ description: "Unique giveaway identifier (UUID v4, originally the drawId).", examples: ["550e8400-e29b-41d4-a716-446655440000"] }),
+    tweetId: t.String({ description: "The numeric ID of the target tweet from which participants were scraped.", examples: ["1234567890123456789"] }),
+    hostUsername: t.String({ description: "Twitter handle of the giveaway organizer (without @). May be 'unknown' if auto-detection failed.", examples: ["fairgiveaway"] }),
+    hostAvatarUrl: t.Optional(t.Nullable(t.String({ description: "URL to the host's Twitter profile picture. Null if could not be resolved." }))),
+    platform: t.String({ description: "Social platform where the giveaway took place. Currently always 'X'.", examples: ["X"] }),
+    mode: t.String({ description: "Scraping source: 'likes' = drew from tweet likers, 'reposts' = drew from retweeters.", examples: ["likes"] }),
+    totalParticipants: t.Number({ description: "Total number of eligible participants scraped from the tweet.", examples: [250] }),
+    participants: t.Array(t.String(), { description: "Full list of participant usernames (without @) scraped from the tweet." }),
+    enabledFeatures: t.Array(t.String(), { description: "Legacy field listing enabled feature flags. Preserved for backward compatibility." }),
     engagementTasks: t.Optional(EngagementTasksSchema),
     antiBotFilters: t.Optional(AntiBotFiltersSchema),
-    winners: t.Array(WinnerSchema),
-  }),
-  response: t.Object({
-    success: t.Boolean(),
-  }),
-  detail: {
-    tags: ["X (Twitter) - Core"],
-    summary: "Save Finalized Draw",
-    description: "Save a finalized draw session permanently.",
+    winners: t.Array(WinnerSchema, { description: "Ordered list of drawn winners with their verification results." }),
+    createdAt: t.Union([t.String(), t.Date()], { description: "ISO 8601 timestamp of when the giveaway was finalized and saved." }),
   },
-};
-
-export const DrawStatusRoute = {
-  response: {
-    200: t.Object({
-      status: t.String({ description: "'active' or 'finalized'" }),
-      data: t.Optional(GiveawaySchema),
-      participants: t.Optional(t.Array(t.String())),
-      mode: t.Optional(t.String()),
-      tweetId: t.Optional(t.String()),
-      hostUsername: t.Optional(t.String()),
-      hostAvatarUrl: t.Optional(t.Nullable(t.String())),
-      drawId: t.Optional(t.String()),
-    }),
-    404: t.Object({
-      error: t.String(),
-    }),
-  },
-  detail: {
-    tags: ["X (Twitter) - Core"],
-    summary: "Check Draw Status",
-    description: "Retrieve the current status of a draw session (active or finalized).",
-  },
-};
-
-export const HistoryRoute = {
-  response: t.Array(GiveawaySchema),
-  detail: {
-    tags: ["X (Twitter) - Discovery"],
-    summary: "Global Giveaways History",
-    description: "Retrieve the 20 most recent finalized X (Twitter) giveaways.",
-  },
-};
-
-export const TweetHistoryRoute = {
-  response: t.Array(GiveawaySchema),
-  detail: {
-    tags: ["X (Twitter) - Discovery"],
-    summary: "Giveaways History by Tweet ID",
-    description: "Retrieve the past giveaways associated with a specific tweet.",
-  },
-};
-
-export const LeaderboardRoute = {
-  response: t.Array(
-    t.Object({
-      _id: t.String(),
-      avatarUrl: t.Optional(t.Nullable(t.String())),
-      totalGiveaways: t.Number(),
-      totalParticipants: t.Number(),
-    }),
-  ),
-  detail: {
-    tags: ["X (Twitter) - Discovery"],
-    summary: "Hosts Leaderboard",
-    description: "Get the top 20 hosts based on number of finalized giveaways.",
-  },
-};
+  { description: "A fully finalized giveaway record stored permanently in the database." },
+);
