@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y \
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Hugging Face Spaces run on port 7860
+# VPS run on port 7860
 EXPOSE 7860
 
 # The oven/bun image already has a user with UID 1000 (usually named 'bun').

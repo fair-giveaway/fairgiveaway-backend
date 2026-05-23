@@ -1,0 +1,40 @@
+name: Deploy to VPS
+
+on:
+  workflow_run:
+    workflows: ["CI Check"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          # This script runs directly on your VPS
+          script: |
+            # 1. Ensure the directory exists
+            mkdir -p ~/fairgiveaway-backend
+            cd ~/fairgiveaway-backend
+            
+            # 2. Pull the latest code (assuming you already cloned it once via HTTPS/SSH)
+            # If the directory is empty, it will fail, so we check first.
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/fair-giveaway/fairgiveaway-backend.git .
+            else
+              git pull origin main
+            fi
+
+            # 3. Rebuild and restart the Docker container
+            docker compose up -d --build
