@@ -188,6 +188,22 @@ We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) 
 
 To report a security vulnerability, please see our [Security Policy](SECURITY.md).
 
+## Support the Project
+
+### THANK YOU FOR USING FAIRGIVEAWAY!
+
+If you found this tool helpful for running your giveaway, consider leaving a tip. Your support keeps the platform provably fair and free for everyone!
+
+**EVM Address**
+```text
+0x6e9b40a8fe85e7dcff40cfc9aa526106fe8e0546
+```
+
+**Solana Address**
+```text
+AnBiWNPW68djMF6ERBpueF8tWmcvHr6iCYzriXwGh9k6
+```
+
 ## License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for details.
