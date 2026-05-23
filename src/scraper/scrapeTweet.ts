@@ -56,10 +56,11 @@ async function extractHostAvatarFallback(page: Page, hostUsername: string): Prom
 export async function scrapeTweet(
   tweetId: string,
   mode: 'likes' | 'reposts',
-  clientHost?: string
+  clientHost?: string,
+  customCookie?: { authToken: string; ct0: string }
 ): Promise<ScrapeResult> {
-  const authToken = process.env.X_AUTH_TOKEN || '';
-  const ct0 = process.env.X_CT0 || '';
+  const authToken = customCookie?.authToken || process.env.X_AUTH_TOKEN || '';
+  const ct0 = customCookie?.ct0 || process.env.X_CT0 || '';
   const ctx: ScrapeContext = { hostUsername: clientHost || 'unknown', hostAvatarUrl: undefined, usernames: new Set() };
   let browser: Browser | null = null;
 

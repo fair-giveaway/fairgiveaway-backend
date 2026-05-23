@@ -11,7 +11,15 @@ async function main(): Promise<void> {
   await connectDB();
 
   const app = new Elysia()
-    .use(cors({ origin: true, credentials: true }))
+    .use(
+      cors({
+        origin: [
+          /^https?:\/\/localhost:3000$/,
+          /^https?:\/\/([a-zA-Z0-9-]+\.)*fairgiveaway\.online$/,
+        ],
+        credentials: true,
+      }),
+    )
     .use(
       swagger({
         provider: "scalar",

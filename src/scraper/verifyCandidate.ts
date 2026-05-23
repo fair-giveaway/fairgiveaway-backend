@@ -211,6 +211,7 @@ export async function verifyCandidate(
   username: string,
   tweetId: string,
   config: VerificationConfig,
+  customCookie?: { authToken: string; ct0: string },
 ): Promise<VerificationResult> {
   let browser: Browser | null = null;
   const result: VerificationResult = {
@@ -223,7 +224,7 @@ export async function verifyCandidate(
   };
 
   try {
-    const { browser: b, page } = await setupVerificationPage();
+    const { browser: b, page } = await setupVerificationPage(customCookie);
     browser = b;
 
     const userData = await loadProfileWithGraphQL(page, username);
@@ -289,14 +290,14 @@ async function waitForProfile(page: Page, username: string): Promise<void> {
 } catch {}
 }
 
-async function setupVerificationPage(): Promise<{ browser: Browser, page: Page }> {
+async function setupVerificationPage(customCookie?: { authToken: string; ct0: string }): Promise<{ browser: Browser, page: Page }> {
   const browser = await launchBrowser();
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
   await setCookiesAndHeaders(
     page,
-    process.env.X_AUTH_TOKEN || "",
-    process.env.X_CT0 || "",
+    customCookie?.authToken || process.env.X_AUTH_TOKEN || "",
+    customCookie?.ct0 || process.env.X_CT0 || "",
   );
   await blockHeavyAssets(page);
   return { browser, page };

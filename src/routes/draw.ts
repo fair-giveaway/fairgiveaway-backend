@@ -23,6 +23,11 @@ export function drawRoutes() {
     },
     {
       body: t.Object({ drawId: t.String() }),
+      detail: {
+        tags: ["Draw"],
+        summary: "Search Draw Session",
+        description: "Searches for a draw session in active cache or permanent history by its ID.",
+      },
     },
   );
 }
