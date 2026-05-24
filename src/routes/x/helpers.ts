@@ -8,7 +8,7 @@ export async function storeDrawSession(
   mode: string,
   participants: string[],
   hostUsername: string,
-  hostAvatarUrl?: string,
+  hostAvatarUrl?: string
 ): Promise<void> {
   const tasks = [
     redis.set(`draw:${drawId}`, JSON.stringify(participants), {

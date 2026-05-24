@@ -25,33 +25,16 @@ export async function handleInitDraw({
   const ct0 = headers["x-ct0"];
   const customCookie = authToken && ct0 ? { authToken, ct0 } : undefined;
 
-  const {
-    participants,
-    hostUsername: scrapedHost,
-    hostAvatarUrl: scrapedHostAvatar,
-  } = await scrapeTweet(
-    tweetId,
-    mode as "likes" | "reposts",
-    clientHost,
-    customCookie,
-  );
+  const { participants, hostUsername: scrapedHost, hostAvatarUrl: scrapedHostAvatar } = await scrapeTweet(tweetId, mode as "likes" | "reposts", clientHost, customCookie);
 
   if (participants.length === 0) {
     set.status = 404;
     return { error: "No eligible participants found or failed to scrape." };
   }
 
-  const finalHost =
-    scrapedHost && scrapedHost !== "unknown"
-      ? scrapedHost
-      : clientHost || "unknown";
-
+  const finalHost = scrapedHost && scrapedHost !== "unknown" ? scrapedHost : clientHost || "unknown";
   const drawId = crypto.randomUUID();
-  const hostAvatarUrl =
-    scrapedHostAvatar ||
-    (finalHost !== "unknown"
-      ? `https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png`
-      : undefined);
+  const hostAvatarUrl = scrapedHostAvatar || (finalHost !== "unknown" ? `https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png` : undefined);
 
   await storeDrawSession(
     drawId,
@@ -59,7 +42,7 @@ export async function handleInitDraw({
     mode,
     participants,
     finalHost,
-    hostAvatarUrl,
+    hostAvatarUrl
   );
 
   return {
